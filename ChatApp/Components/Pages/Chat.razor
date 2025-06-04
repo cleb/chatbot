@@ -1,0 +1,54 @@
+@page "/chat"
+@attribute [Authorize]
+@inject AzureOpenAIChatService ChatService
+@inject BlobChatHistoryService HistoryService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Chat</PageTitle>
+
+<h3>Chat</h3>
+
+<select @bind="SelectedModel">
+    @foreach (var model in Models)
+    {
+        <option value="@model">@model</option>
+    }
+</select>
+
+<div class="chat-window">
+    @foreach (var message in Messages)
+    {
+        <div class="chat-message">
+            <b>@message.Role:</b> @message.Content
+        </div>
+    }
+</div>
+
+<input @bind="UserMessage" @bind:event="oninput" />
+<button @onclick="SendMessage">Send</button>
+
+@code {
+    private List<ChatMessage> Messages = new();
+    private string UserMessage = string.Empty;
+    private string SelectedModel = "gpt-35-turbo";
+    private string[] Models = ["gpt-35-turbo", "gpt-4"];
+    private string? UserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        UserId = authState.User?.Identity?.Name ?? "anonymous";
+        Messages = await HistoryService.LoadHistoryAsync(UserId);
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(UserMessage) || UserId is null) return;
+        Messages.Add(new ChatMessage { Role = "user", Content = UserMessage });
+        var reply = await ChatService.SendMessageAsync(UserId, Messages, SelectedModel);
+        Messages.Add(new ChatMessage { Role = "assistant", Content = reply });
+        UserMessage = string.Empty;
+        await HistoryService.SaveHistoryAsync(UserId, Messages);
+    }
+}
