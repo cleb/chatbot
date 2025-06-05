@@ -1,4 +1,4 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">ChatApp</a>
     </div>
@@ -9,28 +9,35 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            <NavLink class="nav-link" href="/chat/new" Match="NavLinkMatch.All">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> New Chat
             </NavLink>
         </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="chat">
-                <span class="bi bi-chat-text-fill-nav-menu" aria-hidden="true"></span> Chat
-            </NavLink>
-        </div>
+        @if (Threads is not null)
+        {
+            @foreach (var thread in Threads)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="@($"/chat/{thread.Id}")">
+                        <span class="bi bi-chat-text-fill-nav-menu" aria-hidden="true"></span> @thread.Title
+                    </NavLink>
+                </div>
+            }
+        }
     </nav>
 </div>
 
+@code {
+    [Inject] private BlobChatHistoryService HistoryService { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = default!;
+
+    private List<ChatThread>? Threads;
+    private string? UserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        UserId = authState.User?.Identity?.Name ?? "anonymous";
+        Threads = await HistoryService.ListThreadsAsync(UserId);
+    }
+}

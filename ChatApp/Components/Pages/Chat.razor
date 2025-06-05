@@ -1,4 +1,5 @@
-@page "/chat"
+@page "/"
+@page "/chat/{ThreadId?}"
 @rendermode InteractiveServer
 @attribute [Authorize]
 @inject AzureOpenAIChatService ChatService
@@ -30,6 +31,8 @@
 <button @onclick="SendMessage">Send</button>
 
 @code {
+    [Parameter] public string? ThreadId { get; set; }
+
     private List<ChatMessage> Messages = new();
     private string UserMessage = string.Empty;
     private string SelectedModel = "gpt-35-turbo";
@@ -40,16 +43,29 @@
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         UserId = authState.User?.Identity?.Name ?? "anonymous";
-        Messages = await HistoryService.LoadHistoryAsync(UserId);
+        if (!string.IsNullOrEmpty(ThreadId) && ThreadId != "new")
+        {
+            Messages = await HistoryService.LoadHistoryAsync(UserId, ThreadId);
+        }
     }
 
     private async Task SendMessage()
     {
         if (string.IsNullOrWhiteSpace(UserMessage) || UserId is null) return;
         Messages.Add(new ChatMessage { Role = "user", Content = UserMessage });
+
+        if (string.IsNullOrEmpty(ThreadId) || ThreadId == "new")
+        {
+            ThreadId = await HistoryService.CreateThreadAsync(UserId, UserMessage);
+            Navigation.NavigateTo($"/chat/{ThreadId}", forceLoad: true);
+        }
+
         var reply = await ChatService.SendMessageAsync(UserId, Messages, SelectedModel);
         Messages.Add(new ChatMessage { Role = "assistant", Content = reply });
         UserMessage = string.Empty;
-        await HistoryService.SaveHistoryAsync(UserId, Messages);
+        if (ThreadId is not null)
+        {
+            await HistoryService.SaveHistoryAsync(UserId, ThreadId, Messages);
+        }
     }
 }
