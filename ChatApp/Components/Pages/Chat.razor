@@ -57,7 +57,6 @@
         if (string.IsNullOrEmpty(ThreadId) || ThreadId == "new")
         {
             ThreadId = await HistoryService.CreateThreadAsync(UserId, UserMessage);
-            Navigation.NavigateTo($"/chat/{ThreadId}", forceLoad: true);
         }
 
         var reply = await ChatService.SendMessageAsync(UserId, Messages, SelectedModel);
@@ -66,6 +65,7 @@
         if (ThreadId is not null)
         {
             await HistoryService.SaveHistoryAsync(UserId, ThreadId, Messages);
+            Navigation.NavigateTo($"/chat/{ThreadId}", forceLoad: true);
         }
     }
 }
