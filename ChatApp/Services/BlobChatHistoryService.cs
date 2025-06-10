@@ -8,13 +8,15 @@ namespace ChatApp.Services
     public class BlobChatHistoryService
     {
         private readonly BlobContainerClient _container;
+        private readonly AzureOpenAIChatService _chatService;
 
-        public BlobChatHistoryService(IConfiguration config)
+        public BlobChatHistoryService(IConfiguration config, AzureOpenAIChatService chatService)
         {
             var connection = config["BlobStorage:ConnectionString"];
             var containerName = config["BlobStorage:Container"] ?? "chat-history";
             _container = new BlobContainerClient(connection, containerName);
             _container.CreateIfNotExists(PublicAccessType.None);
+            _chatService = chatService;
         }
 
         private BlobClient GetThreadBlob(string userId, string threadId) =>
@@ -45,14 +47,30 @@ namespace ChatApp.Services
 
         public async Task<List<ChatThread>> ListThreadsAsync(string userId)
         {
-            return await LoadIndexAsync(userId);
+            var threads = await LoadIndexAsync(userId);
+            bool changed = false;
+            for (int i = 0; i < threads.Count; i++)
+            {
+                if (threads[i].Title.Length > 60)
+                {
+                    var summary = await _chatService.SummarizeAsync(threads[i].Title);
+                    threads[i].Title = summary;
+                    changed = true;
+                }
+            }
+            if (changed)
+            {
+                await SaveIndexAsync(userId, threads);
+            }
+            return threads;
         }
 
         public async Task<string> CreateThreadAsync(string userId, string title)
         {
             var threads = await LoadIndexAsync(userId);
             var id = Guid.NewGuid().ToString("N");
-            threads.Insert(0, new ChatThread { Id = id, Title = title });
+            var summary = await _chatService.SummarizeAsync(title);
+            threads.Insert(0, new ChatThread { Id = id, Title = summary });
             await SaveIndexAsync(userId, threads);
             return id;
         }
