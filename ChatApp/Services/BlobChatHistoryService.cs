@@ -9,6 +9,7 @@ namespace ChatApp.Services
     {
         private readonly BlobContainerClient _container;
         private readonly AzureOpenAIChatService _chatService;
+        private const int MaxTitleLength = 20;
 
         public BlobChatHistoryService(IConfiguration config, AzureOpenAIChatService chatService)
         {
@@ -51,7 +52,7 @@ namespace ChatApp.Services
             bool changed = false;
             for (int i = 0; i < threads.Count; i++)
             {
-                if (threads[i].Title.Length > 20)
+                if (threads[i].Title.Length > MaxTitleLength)
                 {
                     var summary = await _chatService.SummarizeAsync(threads[i].Title);
                     threads[i].Title = summary;

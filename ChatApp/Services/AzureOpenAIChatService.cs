@@ -46,7 +46,7 @@ namespace ChatApp.Services
             {
                 messages = new[]
                 {
-                    new { role = "system", content = "Summarize the following text in a short phrase suitable as a title. Do not under any circumstances exceed 20 characters" },
+                    new { role = "system", content = "Summarize the following text in under 20 characters." },
                     new { role = "user", content = text }
                 }
             };
@@ -55,8 +55,12 @@ namespace ChatApp.Services
             response.EnsureSuccessStatusCode();
             using var stream = await response.Content.ReadAsStreamAsync();
             using var doc = await JsonDocument.ParseAsync(stream);
-            var summary = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
-            return summary ?? text;
+            var summary = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? text;
+            if (summary.Length > 20)
+            {
+                summary = summary.Substring(0, 20);
+            }
+            return summary;
         }
     }
 }
