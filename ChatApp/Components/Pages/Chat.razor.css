@@ -1,0 +1,9 @@
+.chat-window {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.chat-message {
+    white-space: pre-wrap;
+}

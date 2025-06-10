@@ -36,5 +36,31 @@ namespace ChatApp.Services
             var reply = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
             return reply ?? string.Empty;
         }
+
+        public async Task<string> SummarizeAsync(string text)
+        {
+            var url = $"{_endpoint}/openai/deployments/gpt-4o/chat/completions?api-version=2023-07-01-preview";
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Add("api-key", _key);
+            var payload = new
+            {
+                messages = new[]
+                {
+                    new { role = "system", content = "Summarize the following text in under 20 characters." },
+                    new { role = "user", content = text }
+                }
+            };
+            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+            using var response = await _http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var doc = await JsonDocument.ParseAsync(stream);
+            var summary = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? text;
+            if (summary.Length > 20)
+            {
+                summary = summary.Substring(0, 20);
+            }
+            return summary;
+        }
     }
 }
