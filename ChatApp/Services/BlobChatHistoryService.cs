@@ -51,7 +51,7 @@ namespace ChatApp.Services
             bool changed = false;
             for (int i = 0; i < threads.Count; i++)
             {
-                if (threads[i].Title.Length > 60)
+                if (threads[i].Title.Length > 20)
                 {
                     var summary = await _chatService.SummarizeAsync(threads[i].Title);
                     threads[i].Title = summary;

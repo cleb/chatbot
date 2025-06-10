@@ -39,14 +39,14 @@ namespace ChatApp.Services
 
         public async Task<string> SummarizeAsync(string text)
         {
-            var url = $"{_endpoint}/openai/deployments/gpt-35-turbo/chat/completions?api-version=2023-07-01-preview";
+            var url = $"{_endpoint}/openai/deployments/gpt-4o/chat/completions?api-version=2023-07-01-preview";
             using var request = new HttpRequestMessage(HttpMethod.Post, url);
             request.Headers.Add("api-key", _key);
             var payload = new
             {
                 messages = new[]
                 {
-                    new { role = "system", content = "Summarize the following text in a short phrase suitable as a title." },
+                    new { role = "system", content = "Summarize the following text in a short phrase suitable as a title. Do not under any circumstances exceed 20 characters" },
                     new { role = "user", content = text }
                 }
             };
