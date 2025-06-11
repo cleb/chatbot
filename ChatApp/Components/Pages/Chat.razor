@@ -27,8 +27,10 @@
     }
 </div>
 
-<input @bind="UserMessage" @bind:event="oninput" />
-<button @onclick="SendMessage">Send</button>
+<div class="chat-input-area">
+    <textarea class="chat-input" @bind="UserMessage" @bind:event="oninput" @onkeydown="HandleKeyDown"></textarea>
+    <button class="btn btn-primary" @onclick="SendMessage">Send</button>
+</div>
 
 @code {
     [Parameter] public string? ThreadId { get; set; }
@@ -66,6 +68,14 @@
         {
             await HistoryService.SaveHistoryAsync(UserId, ThreadId, Messages);
             Navigation.NavigateTo($"/chat/{ThreadId}", forceLoad: true);
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.CtrlKey)
+        {
+            await SendMessage();
         }
     }
 }
