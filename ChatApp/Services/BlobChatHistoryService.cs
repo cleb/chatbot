@@ -108,5 +108,17 @@ namespace ChatApp.Services
             stream.Position = 0;
             await blob.UploadAsync(stream, overwrite: true);
         }
+
+        public async Task DeleteThreadAsync(string userId, string threadId)
+        {
+            var threads = await LoadIndexAsync(userId);
+            var removed = threads.RemoveAll(t => t.Id == threadId) > 0;
+            if (removed)
+            {
+                await SaveIndexAsync(userId, threads);
+            }
+            var blob = GetThreadBlob(userId, threadId);
+            await blob.DeleteIfExistsAsync();
+        }
     }
 }
