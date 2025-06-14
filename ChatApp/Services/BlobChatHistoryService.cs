@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Identity;
 using System.Text.Json;
 using ChatApp.Models;
 
@@ -8,6 +9,7 @@ namespace ChatApp.Services
     public class BlobChatHistoryService
     {
         private readonly BlobContainerClient _container;
+        private readonly bool _useManagedIdentity;
         private readonly AzureOpenAIChatService _chatService;
         private const int MaxTitleLength = 20;
 
@@ -15,7 +17,17 @@ namespace ChatApp.Services
         {
             var connection = config["BlobStorage:ConnectionString"];
             var containerName = config["BlobStorage:Container"] ?? "chat-history";
-            _container = new BlobContainerClient(connection, containerName);
+            _useManagedIdentity = string.IsNullOrEmpty(connection) || bool.TryParse(config["BlobStorage:UseManagedIdentity"], out var useMi) && useMi;
+            if (_useManagedIdentity)
+            {
+                var account = config["BlobStorage:AccountName"] ?? throw new ArgumentNullException("BlobStorage:AccountName");
+                var uri = new Uri($"https://{account}.blob.core.windows.net/{containerName}");
+                _container = new BlobContainerClient(uri, new DefaultAzureCredential());
+            }
+            else
+            {
+                _container = new BlobContainerClient(connection, containerName);
+            }
             _container.CreateIfNotExists(PublicAccessType.None);
             _chatService = chatService;
         }

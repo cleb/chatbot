@@ -3,6 +3,8 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using ChatApp.Models;
+using Azure.Identity;
+using Azure.Core;
 
 namespace ChatApp.Services
 {
@@ -10,12 +12,16 @@ namespace ChatApp.Services
     {
         private readonly HttpClient _http;
         private readonly string _endpoint;
-        private readonly string _key;
+        private readonly string? _key;
+        private readonly bool _useManagedIdentity;
+        private readonly TokenCredential _credential;
 
         public AzureOpenAIChatService(IConfiguration config, IHttpClientFactory factory)
         {
-            _endpoint = config["AzureOpenAI:Endpoint"];
+            _endpoint = config["AzureOpenAI:Endpoint"] ?? throw new ArgumentNullException("AzureOpenAI:Endpoint");
             _key = config["AzureOpenAI:Key"];
+            _useManagedIdentity = string.IsNullOrEmpty(_key) || bool.TryParse(config["AzureOpenAI:UseManagedIdentity"], out var useMi) && useMi;
+            _credential = new DefaultAzureCredential();
             _http = factory.CreateClient();
         }
 
@@ -23,7 +29,15 @@ namespace ChatApp.Services
         {
             var url = $"{_endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2023-07-01-preview";
             using var request = new HttpRequestMessage(HttpMethod.Post, url);
-            request.Headers.Add("api-key", _key);
+            if (_useManagedIdentity)
+            {
+                var token = await _credential.GetTokenAsync(new TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" }), CancellationToken.None);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
+            }
+            else if (!string.IsNullOrEmpty(_key))
+            {
+                request.Headers.Add("api-key", _key);
+            }
             var payload = new
             {
                 messages = messages.Select(m => new { role = m.Role, content = m.Content }).ToList()
@@ -41,7 +55,15 @@ namespace ChatApp.Services
         {
             var url = $"{_endpoint}/openai/deployments/gpt-4o/chat/completions?api-version=2023-07-01-preview";
             using var request = new HttpRequestMessage(HttpMethod.Post, url);
-            request.Headers.Add("api-key", _key);
+            if (_useManagedIdentity)
+            {
+                var token = await _credential.GetTokenAsync(new TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" }), CancellationToken.None);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
+            }
+            else if (!string.IsNullOrEmpty(_key))
+            {
+                request.Headers.Add("api-key", _key);
+            }
             var payload = new
             {
                 messages = new[]
