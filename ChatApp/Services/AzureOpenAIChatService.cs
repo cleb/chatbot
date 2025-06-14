@@ -15,6 +15,7 @@ namespace ChatApp.Services
         private readonly string? _key;
         private readonly bool _useManagedIdentity;
         private readonly TokenCredential _credential;
+        private const string ApiVersion = "2024-02-15-preview";
 
         public AzureOpenAIChatService(IConfiguration config, IHttpClientFactory factory)
         {
@@ -27,7 +28,7 @@ namespace ChatApp.Services
 
         public async Task<string> SendMessageAsync(string userId, List<ChatMessage> messages, string deployment)
         {
-            var url = $"{_endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2023-07-01-preview";
+            var url = $"{_endpoint}/openai/deployments/{deployment}/chat/completions?api-version={ApiVersion}";
             using var request = new HttpRequestMessage(HttpMethod.Post, url);
             if (_useManagedIdentity)
             {
@@ -53,7 +54,7 @@ namespace ChatApp.Services
 
         public async Task<string> SummarizeAsync(string text)
         {
-            var url = $"{_endpoint}/openai/deployments/gpt-4o/chat/completions?api-version=2023-07-01-preview";
+            var url = $"{_endpoint}/openai/deployments/gpt-4o/chat/completions?api-version={ApiVersion}";
             using var request = new HttpRequestMessage(HttpMethod.Post, url);
             if (_useManagedIdentity)
             {
