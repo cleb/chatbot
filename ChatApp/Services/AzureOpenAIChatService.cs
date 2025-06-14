@@ -15,7 +15,7 @@ namespace ChatApp.Services
         private readonly string? _key;
         private readonly bool _useManagedIdentity;
         private readonly TokenCredential _credential;
-        private const string ApiVersion = "2024-02-15-preview";
+        private const string ApiVersion = "2025-04-01-preview";
 
         public AzureOpenAIChatService(IConfiguration config, IHttpClientFactory factory)
         {
