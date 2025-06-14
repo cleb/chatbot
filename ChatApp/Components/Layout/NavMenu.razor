@@ -17,11 +17,14 @@
         {
             @foreach (var thread in Threads)
             {
-                <div class="nav-item px-3">
+                <div class="nav-item px-3 thread-item">
                     <NavLink class="nav-link" href="@($"/chat/{thread.Id}")">
                         <span class="bi bi-chat-text-fill-nav-menu" aria-hidden="true"></span>
                         <span class="thread-title">@thread.Title</span>
                     </NavLink>
+                    <button class="delete-btn" @onclick="() => DeleteThread(thread.Id)" @onclick:stopPropagation="true">
+                        <span class="bi bi-trash-fill-nav-menu" aria-hidden="true"></span>
+                    </button>
                 </div>
             }
         }
@@ -40,5 +43,13 @@
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         UserId = authState.User?.Identity?.Name ?? "anonymous";
         Threads = await HistoryService.ListThreadsAsync(UserId);
+    }
+
+    private async Task DeleteThread(string threadId)
+    {
+        if (UserId is null || Threads is null) return;
+        await HistoryService.DeleteThreadAsync(UserId, threadId);
+        Threads.RemoveAll(t => t.Id == threadId);
+        StateHasChanged();
     }
 }
