@@ -4,13 +4,25 @@
     gap: 0.5rem;
     max-height: 60vh;
     overflow-y: auto;
-    border: 1px solid #ccc;
     padding: 1rem;
     margin-bottom: 0.5rem;
 }
 
 .chat-message {
     white-space: pre-wrap;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    max-width: 70%;
+}
+
+.user-message {
+    align-self: flex-end;
+    background-color: #e7f4e4;
+}
+
+.assistant-message {
+    align-self: flex-start;
+    background-color: #f0f0f0;
 }
 
 .chat-input-area {

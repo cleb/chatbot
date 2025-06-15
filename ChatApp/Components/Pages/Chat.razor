@@ -21,16 +21,19 @@
 <div class="chat-window">
     @foreach (var message in Messages)
     {
-        <div class="chat-message">
-            <b>@message.Role:</b> @message.Content
+        <div class="chat-message @(message.Role == "user" ? "user-message" : "assistant-message")">
+            @message.Content
         </div>
     }
 </div>
 
-<div class="chat-input-area">
-    <textarea class="chat-input" @bind="UserMessage" @bind:event="oninput" @onkeydown="HandleKeyDown"></textarea>
-    <button class="btn btn-primary" @onclick="SendMessage">Send</button>
-</div>
+@if (!IsAwaitingReply)
+{
+    <div class="chat-input-area">
+        <textarea class="chat-input" @bind="UserMessage" @bind:event="oninput" @onkeydown="HandleKeyDown"></textarea>
+        <button class="btn btn-primary" @onclick="SendMessage">Send</button>
+    </div>
+}
 
 @code {
     [Parameter] public string? ThreadId { get; set; }
@@ -40,6 +43,7 @@
     private string SelectedModel = "gpt-4o";
     private string[] Models = ["gpt-35-turbo", "gpt-4o","o4-mini"];
     private string? UserId;
+    private bool IsAwaitingReply = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -55,6 +59,8 @@
     {
         if (string.IsNullOrWhiteSpace(UserMessage) || UserId is null) return;
         Messages.Add(new ChatMessage { Role = "user", Content = UserMessage });
+        IsAwaitingReply = true;
+        StateHasChanged();
 
         if (string.IsNullOrEmpty(ThreadId) || ThreadId == "new")
         {
@@ -64,6 +70,7 @@
         var reply = await ChatService.SendMessageAsync(UserId, Messages, SelectedModel);
         Messages.Add(new ChatMessage { Role = "assistant", Content = reply });
         UserMessage = string.Empty;
+        IsAwaitingReply = false;
         if (ThreadId is not null)
         {
             await HistoryService.SaveHistoryAsync(UserId, ThreadId, Messages);
