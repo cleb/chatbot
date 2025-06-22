@@ -2,7 +2,9 @@
 @page "/chat/{ThreadId?}"
 @rendermode InteractiveServer
 @attribute [Authorize]
-@inject AzureOpenAIChatService ChatService
+@inject AzureOpenAIChatService OpenAIChatService
+@inject AzureFoundryChatService FoundryChatService
+@inject IConfiguration Configuration
 @inject BlobChatHistoryService HistoryService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -41,12 +43,18 @@
     private List<ChatMessage> Messages = new();
     private string UserMessage = string.Empty;
     private string SelectedModel = "gpt-4o";
-    private string[] Models = ["gpt-35-turbo", "gpt-4o","o4-mini"];
+    private Dictionary<string, string> ModelServiceMap = new();
+    private IEnumerable<string> Models => ModelServiceMap.Keys;
     private string? UserId;
     private bool IsAwaitingReply = false;
 
     protected override async Task OnInitializedAsync()
     {
+        ModelServiceMap = Configuration.GetSection("ModelServiceMap").Get<Dictionary<string, string>>() ?? new();
+        if (ModelServiceMap.Count > 0)
+        {
+            SelectedModel = ModelServiceMap.Keys.First();
+        }
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         UserId = authState.User?.Identity?.Name ?? "anonymous";
         if (!string.IsNullOrEmpty(ThreadId) && ThreadId != "new")
@@ -67,7 +75,16 @@
             ThreadId = await HistoryService.CreateThreadAsync(UserId, UserMessage);
         }
 
-        var reply = await ChatService.SendMessageAsync(UserId, Messages, SelectedModel);
+        string reply;
+        var service = ModelServiceMap.TryGetValue(SelectedModel, out var svc) ? svc : "AzureOpenAI";
+        if (service == "AzureFoundry")
+        {
+            reply = await FoundryChatService.SendMessageAsync(UserId, Messages, SelectedModel);
+        }
+        else
+        {
+            reply = await OpenAIChatService.SendMessageAsync(UserId, Messages, SelectedModel);
+        }
         Messages.Add(new ChatMessage { Role = "assistant", Content = reply });
         UserMessage = string.Empty;
         IsAwaitingReply = false;
