@@ -49,9 +49,17 @@
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         UserId = authState.User?.Identity?.Name ?? "anonymous";
-        if (!string.IsNullOrEmpty(ThreadId) && ThreadId != "new")
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(ThreadId) && ThreadId != "new" && UserId is not null)
         {
             Messages = await HistoryService.LoadHistoryAsync(UserId, ThreadId);
+        }
+        else
+        {
+            Messages = new();
         }
     }
 
