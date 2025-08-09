@@ -62,9 +62,11 @@
         IsAwaitingReply = true;
         StateHasChanged();
 
+        var isNewThread = false;
         if (string.IsNullOrEmpty(ThreadId) || ThreadId == "new")
         {
             ThreadId = await HistoryService.CreateThreadAsync(UserId, UserMessage);
+            isNewThread = true;
         }
 
         var reply = await ChatService.SendMessageAsync(UserId, Messages, SelectedModel);
@@ -74,13 +76,16 @@
         if (ThreadId is not null)
         {
             await HistoryService.SaveHistoryAsync(UserId, ThreadId, Messages);
-            Navigation.NavigateTo($"/chat/{ThreadId}", forceLoad: true);
+            if (isNewThread)
+            {
+                Navigation.NavigateTo($"/chat/{ThreadId}", replace: true);
+            }
         }
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && !e.CtrlKey)
+        if (e.Key == "Enter" && !e.ShiftKey && !e.AltKey && !e.CtrlKey)
         {
             await SendMessage();
         }
