@@ -1,33 +1,31 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using Azure.AI.OpenAI;
 using Azure;
+using Azure.AI.Inference;
 using Azure.Identity;
 using ChatApp.Models;
-using OpenAI.Chat;
-using System.ClientModel;
 
 namespace ChatApp.Services
 {
     public class AzureFoundryChatService
     {
-        private readonly AzureOpenAIClient _client;
+        private readonly ChatCompletionsClient _client;
 
         public AzureFoundryChatService(IConfiguration config)
         {
             var endpoint = config["AzureFoundry:Endpoint"] ?? throw new ArgumentNullException("AzureFoundry:Endpoint");
             var key = config["AzureFoundry:Key"];
             var useManagedIdentity = string.IsNullOrEmpty(key) || bool.TryParse(config["AzureFoundry:UseManagedIdentity"], out var useMi) && useMi;
+            var options = new AzureAIInferenceClientOptions(AzureAIInferenceClientOptions.ServiceVersion.V2024_05_01_Preview);
 
             if (useManagedIdentity)
             {
-                _client = new AzureOpenAIClient(new Uri(endpoint), new DefaultAzureCredential());
+                _client = new ChatCompletionsClient(new Uri(endpoint), new DefaultAzureCredential(), options);
             }
             else if (!string.IsNullOrEmpty(key))
             {
-                _client = new AzureOpenAIClient(new Uri(endpoint), new ApiKeyCredential(key));
+                _client = new ChatCompletionsClient(new Uri(endpoint), new AzureKeyCredential(key), options);
             }
             else
             {
@@ -35,19 +33,24 @@ namespace ChatApp.Services
             }
         }
 
-        public async Task<string> SendMessageAsync(string userId, List<ChatApp.Models.ChatMessage> messages, string deployment)
+        public async Task<string> SendMessageAsync(string userId, List<ChatMessage> messages, string model)
         {
-            ChatClient chatClient = _client.GetChatClient(deployment);
-            IEnumerable<OpenAI.Chat.ChatMessage> chatMessages = messages.Select(m =>
-                m.Role switch
+            var request = new ChatCompletionsOptions
+            {
+                Model = model
+            };
+            foreach (var m in messages)
+            {
+                request.Messages.Add(m.Role switch
                 {
-                    "system" => (OpenAI.Chat.ChatMessage)new SystemChatMessage(m.Content),
-                    "assistant" => new AssistantChatMessage(m.Content),
-                    _ => new UserChatMessage(m.Content)
+                    "system" => new ChatRequestSystemMessage(m.Content),
+                    "assistant" => new ChatRequestAssistantMessage(m.Content),
+                    _ => new ChatRequestUserMessage(m.Content)
                 });
+            }
 
-            ClientResult<ChatCompletion> completion = await chatClient.CompleteChatAsync(chatMessages);
-            return completion.Value.Content[0].Text ?? string.Empty;
+            Response<ChatCompletions> response = await _client.CompleteAsync(request);
+            return response.Value.Content ?? string.Empty;
         }
     }
 }
