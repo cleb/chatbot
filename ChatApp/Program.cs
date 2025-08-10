@@ -15,6 +15,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddHttpClient();
 
 builder.Services.AddSingleton<AzureOpenAIChatService>();
+builder.Services.AddSingleton<AzureFoundryChatService>();
 builder.Services.AddSingleton<BlobChatHistoryService>();
 
 var app = builder.Build();
