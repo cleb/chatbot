@@ -2,6 +2,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Collections.Generic;
+using System.IO;
 using ChatApp.Models;
 using Azure.Identity;
 using Azure.Core;
@@ -26,7 +28,7 @@ namespace ChatApp.Services
             _http = factory.CreateClient();
         }
 
-        public async Task<string> SendMessageAsync(string userId, List<ChatMessage> messages, string deployment)
+        public async IAsyncEnumerable<string> SendMessageAsync(string userId, List<ChatMessage> messages, string deployment)
         {
             var url = $"{_endpoint}/openai/deployments/{deployment}/chat/completions?api-version={ApiVersion}";
             using var request = new HttpRequestMessage(HttpMethod.Post, url);
@@ -41,15 +43,44 @@ namespace ChatApp.Services
             }
             var payload = new
             {
-                messages = messages.Select(m => new { role = m.Role, content = m.Content }).ToList()
+                messages = messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
+                stream = true
             };
             request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            using var response = await _http.SendAsync(request);
+            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
             using var stream = await response.Content.ReadAsStreamAsync();
-            using var doc = await JsonDocument.ParseAsync(stream);
-            var reply = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
-            return reply ?? string.Empty;
+            using var reader = new StreamReader(stream);
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+                if (line.StartsWith("data: "))
+                {
+                    line = line.Substring("data: ".Length);
+                }
+                if (line == "[DONE]")
+                {
+                    break;
+                }
+                using var doc = JsonDocument.Parse(line);
+                var choices = doc.RootElement.GetProperty("choices");
+                if (choices.GetArrayLength() > 0)
+                {
+                    var delta = choices[0].GetProperty("delta");
+                    if (delta.TryGetProperty("content", out var contentProp))
+                    {
+                        var content = contentProp.GetString();
+                        if (!string.IsNullOrEmpty(content))
+                        {
+                            yield return content;
+                        }
+                    }
+                }
+            }
         }
 
         public async Task<string> SummarizeAsync(string text)

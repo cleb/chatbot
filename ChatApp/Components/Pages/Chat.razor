@@ -85,17 +85,26 @@
             isNewThread = true;
         }
 
-        string reply;
         var service = ModelServiceMap.TryGetValue(SelectedModel, out var svc) ? svc : "AzureOpenAI";
+        var messagesToSend = Messages.ToList();
+        var assistantMessage = new ChatMessage { Role = "assistant", Content = string.Empty };
+        Messages.Add(assistantMessage);
         if (service == "AzureFoundry")
         {
-            reply = await FoundryChatService.SendMessageAsync(UserId, Messages, SelectedModel);
+            await foreach (var token in FoundryChatService.SendMessageAsync(UserId, messagesToSend, SelectedModel))
+            {
+                assistantMessage.Content += token;
+                StateHasChanged();
+            }
         }
         else
         {
-            reply = await OpenAIChatService.SendMessageAsync(UserId, Messages, SelectedModel);
+            await foreach (var token in OpenAIChatService.SendMessageAsync(UserId, messagesToSend, SelectedModel))
+            {
+                assistantMessage.Content += token;
+                StateHasChanged();
+            }
         }
-        Messages.Add(new ChatMessage { Role = "assistant", Content = reply });
         UserMessage = string.Empty;
         IsAwaitingReply = false;
         if (ThreadId is not null)
