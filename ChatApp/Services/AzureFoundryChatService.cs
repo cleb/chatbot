@@ -33,7 +33,7 @@ namespace ChatApp.Services
             }
         }
 
-        public async Task<string> SendMessageAsync(string userId, List<ChatMessage> messages, string model)
+        public async IAsyncEnumerable<string> SendMessageAsync(string userId, List<ChatMessage> messages, string model)
         {
             var request = new ChatCompletionsOptions
             {
@@ -49,8 +49,14 @@ namespace ChatApp.Services
                 });
             }
 
-            Response<ChatCompletions> response = await _client.CompleteAsync(request);
-            return response.Value.Content ?? string.Empty;
+            StreamingResponse<StreamingChatCompletionsUpdate> response = await _client.CompleteStreamingAsync(request);
+            await foreach (var update in response.EnumerateValues())
+            {
+                if (!string.IsNullOrEmpty(update.ContentUpdate))
+                {
+                    yield return update.ContentUpdate;
+                }
+            }
         }
     }
 }
